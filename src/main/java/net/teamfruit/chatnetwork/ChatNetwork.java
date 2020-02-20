@@ -11,12 +11,14 @@ import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
 import net.teamfruit.chatnetwork.command.ModCommand;
 import net.teamfruit.chatnetwork.network.ChatReceiver;
+import net.teamfruit.chatnetwork.network.ChatSender;
 import net.teamfruit.chatnetwork.util.ServerThreadExecutor;
 
 import java.io.IOException;
 
 @Mod(modid = Reference.MODID, name = Reference.NAME, version = Reference.VERSION, acceptableRemoteVersions = "*")
 public class ChatNetwork {
+	private ChatSender sender = new ChatSender();
 	private ChatReceiver receiver = new ChatReceiver();
 
 	@Mod.EventHandler
@@ -48,6 +50,7 @@ public class ChatNetwork {
 
 	@SubscribeEvent
 	public void onChatSend(ServerChatEvent event) {
+		sender.send(event);
 	}
 
 	@SubscribeEvent

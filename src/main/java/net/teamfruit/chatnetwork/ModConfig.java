@@ -24,68 +24,28 @@ public class ModConfig {
         @Config.RequiresMcRestart
         public int port = 25541;
 
-        @Config.Name("Address")
-        @Config.Comment({ "Address to Send" })
-        public String[] address = { "localhost:25542" };
+        @Config.Name("Name")
+        @Config.Comment({ "Server Name" })
+        public String name = "";
+
+        @Config.Name("URL")
+        @Config.Comment({ "Http Address to Send - ex) http://localhost:25542" })
+        public String[] address = { "http://localhost:25542" };
+
+        @Config.Name("User Agent")
+        @Config.Comment({ "Http User Agent" })
+        public String useragent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/75.0.3770.80 Safari/537.36";
     }
 
     public static class Messages {
 
-        @Config.Name("Login Load Message")
-        @Config.Comment({ "the text that is shown when a player logged in and items are loaded", "must be formatted in /tellraw nbt format" })
-        public String loginLoadedMessage = "{\"text\":\"Cloud Inventory is successfully loaded.\"}";
+        @Config.Name("Display Name Message")
+        @Config.Comment({ "'%s' -> '<PlayerName> Message'" })
+        public String displayNameMessage = "%s";
 
-        @Config.Name("Data Available Message")
-        @Config.Comment({ "the text that is shown when a player data available on Cloud", "must be formatted in /tellraw nbt format" })
-        public String checkExistsMessage = "{\"text\":\"Your player data is available on Cloud. [@@DATE@@] Type '/cloud load' to use it!\"}";
-
-        @Config.Name("Data Unavailable Message")
-        @Config.Comment({ "the text that is shown when a player data unavailable on Cloud", "must be formatted in /tellraw nbt format" })
-        public String checkNotExistsMessage = "{\"text\":\"Nothing to download\"}";
-
-        @Config.Name("Local Data Unavailable Message")
-        @Config.Comment({ "the text that is shown when a player data unavailable on Local", "must be formatted in /tellraw nbt format" })
-        public String checkLocalNotExistsMessage = "{\"text\":\"Nothing to upload\"}";
-
-        @Config.Name("Data Check Failed Message")
-        @Config.Comment({ "the text that is shown when the data check fails", "must be formatted in /tellraw nbt format" })
-        public String checkFailedMessage = "{\"text\":\"Failed to Check\"}";
-
-        @Config.Name("Data Date Message Format")
-        @Config.Comment({ "the text that is shown when the data check fails" })
-        public String checkDataDateMessageFormat = "yyyy/MM/dd (E) H:mm";
-
-        @Config.Name("Data Downloading Message")
-        @Config.Comment({ "the text that is shown when the data is downloading", "must be formatted in /tellraw nbt format" })
-        public String downloadBeginMessage = "{\"text\":\"Downloading from Cloud...\"}";
-
-        @Config.Name("Data Download Finish Message")
-        @Config.Comment({ "the text that is shown when the data is downloaded", "must be formatted in /tellraw nbt format" })
-        public String downloadEndMessage = "{\"text\":\"Finished Data Downloading!\"}";
-
-        @Config.Name("Data Download Failed Message")
-        @Config.Comment({ "the text that is shown when the data download fails", "must be formatted in /tellraw nbt format" })
-        public String downloadFailedMessage = "{\"text\":\"Failed to Download\"}";
-
-        @Config.Name("Your Data Overwriting Message")
-        @Config.Comment({ "the text that is shown when the local data will be overwritten", "must be formatted in /tellraw nbt format" })
-        public String downloadOverwriteMessage = "{\"text\":\"Your Local Data will be overwritten by the Cloud Data. Type '/cloud load force' to continue\"}";
-
-        @Config.Name("Data Uploading Message")
-        @Config.Comment({ "the text that is shown when the data is uploading", "must be formatted in /tellraw nbt format" })
-        public String uploadBeginMessage = "{\"text\":\"Uploading to Cloud...\"}";
-
-        @Config.Name("Data Upload Finish Message")
-        @Config.Comment({ "the text that is shown when the data is uploaded", "must be formatted in /tellraw nbt format" })
-        public String uploadEndMessage = "{\"text\":\"Finished Data Uploading!\"}";
-
-        @Config.Name("Data Upload Failed Message")
-        @Config.Comment({ "the text that is shown when the data upload fails", "must be formatted in /tellraw nbt format" })
-        public String uploadFailedMessage = "{\"text\":\"Failed to Upload\"}";
-
-        @Config.Name("Cloud Data Overwriting Message")
-        @Config.Comment({ "the text that is shown when the cloud data will be overwritten", "must be formatted in /tellraw nbt format" })
-        public String uploadOverwriteMessage = "{\"text\":\"Your Cloud Data will be overwritten by the Local Data. Type '/cloud save force' to continue\"}";
+        @Config.Name("Display Name with Server Message")
+        @Config.Comment({ "'%s[%s]' -> '<PlayerName[ServerName]> Message'" })
+        public String displayNameWithServerMessage = "%s[%s]";
     }
 
     @Mod.EventBusSubscriber(modid = Reference.MODID)

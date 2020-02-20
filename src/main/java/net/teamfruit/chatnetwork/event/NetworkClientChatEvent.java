@@ -5,12 +5,15 @@ import net.minecraftforge.fml.common.eventhandler.Cancelable;
 import net.minecraftforge.fml.common.eventhandler.Event;
 import net.teamfruit.chatnetwork.ChatData;
 
+import javax.annotation.Nullable;
+
 @Cancelable
-public class NetworkServerChatEvent extends Event {
+public class NetworkClientChatEvent extends Event {
     public final ChatData data;
+    @Nullable
     public ITextComponent component;
 
-    public NetworkServerChatEvent(ChatData data) {
+    public NetworkClientChatEvent(ChatData data) {
         super();
         this.data = data;
     }
