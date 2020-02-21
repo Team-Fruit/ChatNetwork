@@ -1,12 +1,12 @@
 [
 {
-  "modid": "clouditem",
-  "name": "Cloud Item",
-  "description": "Upload Item to Cloud / Download Item from Cloud",
+  "modid": "chatnetwork",
+  "name": "Chat Network",
+  "description": "Connect the chat between servers with Webhook",
   "version": "${version}",
   "mcversion": "${mcversion}",
-  "url": "https://github.com/Team-Fruit/CloudItem",
-  "updateUrl": "https://github.com/Team-Fruit/CloudItem/releases",
+  "url": "https://github.com/Team-Fruit/ChatNetwork",
+  "updateUrl": "https://github.com/Team-Fruit/ChatNetwork/releases",
   "authorList": ["Kamesuta"],
   "credits": "2020 TeamFruit",
   "logoFile": "",

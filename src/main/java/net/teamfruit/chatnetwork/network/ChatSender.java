@@ -50,14 +50,14 @@ public class ChatSender {
 
                     int status = urlConn.getResponseCode();
                     if (!(status == HttpURLConnection.HTTP_OK || status == HttpURLConnection.HTTP_NO_CONTENT)) {
-                        Log.log.warn("Cloud not send message: " + target + " returned invalid status code " + status);
+                        Log.log.debug("Cloud not send message: " + target + " returned invalid status code " + status);
                         return false;
                     }
 
                     return true;
 
                 } catch (IOException e) {
-                    Log.log.error("Cloud not send message to " + target, e);
+                    Log.log.debug("Cloud not send message to " + target);
                     return false;
 
                 } finally {
