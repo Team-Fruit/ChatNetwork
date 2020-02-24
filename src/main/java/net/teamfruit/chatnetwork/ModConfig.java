@@ -46,6 +46,18 @@ public class ModConfig {
         @Config.Name("Display Name with Server Message")
         @Config.Comment({ "'%s[%s]' -> '<PlayerName[ServerName]> Message'" })
         public String displayNameWithServerMessage = "%s[%s]";
+
+        @Config.Name("Server Name Message")
+        @Config.Comment({ "'%s Server' -> 'ServerName Server'" })
+        public String serverNameMessage = "%s Server";
+
+        @Config.Name("Server Start Message")
+        @Config.Comment({ "'%s Server is started' -> 'ServerName Server is started'" })
+        public String serverStartMessage = "%s Server is started";
+
+        @Config.Name("Server Stop Message")
+        @Config.Comment({ "'%s Server is started' -> 'ServerName Server is stopped'" })
+        public String serverStopMessage = "%s Server is stopped";
     }
 
     @Mod.EventBusSubscriber(modid = Reference.MODID)

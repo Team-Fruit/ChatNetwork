@@ -59,9 +59,9 @@ public class ChatReceiver {
                     success = false;
                 }
                 if (success)
-                    exc.sendResponseHeaders(204, 0);
+                    exc.sendResponseHeaders(204, -1);
                 else
-                    exc.sendResponseHeaders(400, 0);
+                    exc.sendResponseHeaders(400, -1);
             }
         });
         httpServer.start();

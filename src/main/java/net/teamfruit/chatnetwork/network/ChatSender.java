@@ -2,7 +2,6 @@ package net.teamfruit.chatnetwork.network;
 
 import com.google.common.base.Charsets;
 import net.minecraftforge.common.MinecraftForge;
-import net.minecraftforge.event.ServerChatEvent;
 import net.teamfruit.chatnetwork.ChatData;
 import net.teamfruit.chatnetwork.Log;
 import net.teamfruit.chatnetwork.ModConfig;
@@ -18,11 +17,7 @@ import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
 
 public class ChatSender {
-    public void send(ServerChatEvent event) {
-        ChatData data = new ChatData();
-        data.username = event.getUsername();
-        data.content = event.getMessage();
-        data.servername = ModConfig.api.name;
+    public void send(ChatData data) {
         if (!onNetworkClientChatEvent(data))
             return;
 
