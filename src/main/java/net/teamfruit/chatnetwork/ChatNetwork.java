@@ -26,10 +26,14 @@ import net.teamfruit.chatnetwork.command.ModCommand;
 import net.teamfruit.chatnetwork.event.NetworkClientChatEvent;
 import net.teamfruit.chatnetwork.network.ChatReceiver;
 import net.teamfruit.chatnetwork.network.ChatSender;
+import net.teamfruit.chatnetwork.util.Base64Utils;
 import net.teamfruit.chatnetwork.util.ServerThreadExecutor;
 import org.apache.commons.lang3.StringUtils;
 
+import javax.annotation.Nonnull;
 import java.io.IOException;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Mod(modid = Reference.MODID, name = Reference.NAME, version = Reference.VERSION, acceptableRemoteVersions = "*")
 public class ChatNetwork {
@@ -169,5 +173,36 @@ public class ChatNetwork {
 		message = StringUtils.replace(message, "@everyone", "\uFF20everyone");
 		message = StringUtils.replace(message, "@here", "\uFF20here");
 		event.data.content = message;
+	}
+
+	@Nonnull
+	static final Pattern pattern = Pattern.compile("<(a?)\\:(\\w+?)\\:([a-zA-Z0-9+/=]+?)>");
+
+	public static String toDecimalId(final String id) {
+		try {
+			return Long.toString(Base64Utils.decode(id));
+		} catch (final IllegalArgumentException e) {
+		}
+		return id;
+	}
+
+	@SubscribeEvent
+	public void onEmojiReplace(NetworkClientChatEvent event) {
+		String message = event.data.content;
+
+		StringBuffer sb = new StringBuffer();
+		Matcher matcher = pattern.matcher(message);
+		while (matcher.find()) {
+			final String g1 = matcher.group(1);
+			final String g2 = matcher.group(2);
+			String g3 = matcher.group(3);
+			if (!StringUtils.isEmpty(g3))
+				if (StringUtils.length(g3)<=12)
+					g3 = toDecimalId(g3);
+			matcher.appendReplacement(sb, String.format("<%s:%s:%s>", g1, g2, g3));
+		}
+		matcher.appendTail(sb);
+
+		event.data.content = sb.toString();
 	}
 }
