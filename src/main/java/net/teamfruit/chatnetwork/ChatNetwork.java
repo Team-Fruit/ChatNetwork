@@ -4,6 +4,8 @@ import com.mojang.authlib.GameProfile;
 import net.minecraft.advancements.Advancement;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.entity.player.EntityPlayerMP;
+import net.minecraft.scoreboard.Team;
 import net.minecraft.server.management.PlayerProfileCache;
 import net.minecraft.util.text.ITextComponent;
 import net.minecraft.util.text.TextComponentString;
@@ -116,18 +118,29 @@ public class ChatNetwork {
 
     @SubscribeEvent
     public void onEntityDeathEvent(LivingDeathEvent event) {
-        boolean enableLivingEntityDeathMessages = false;
-        try {
-            @SuppressWarnings("unchecked")
-            Boolean b = ObfuscationReflectionHelper.getPrivateValue((Class<? super Object>) Class.forName("cofh.core.init.CoreProps"), null, "enableLivingEntityDeathMessages");
-            enableLivingEntityDeathMessages = b;
-        } catch (Exception e) {
-            ; // ignore
-        }
         EntityLivingBase entity = event.getEntityLiving();
-        if (enableLivingEntityDeathMessages && !entity.world.isRemote && event.getEntityLiving().hasCustomName() && entity.world.getGameRules().getBoolean("showDeathMessages")) {
-            ITextComponent message = event.getEntityLiving().getCombatTracker().getDeathMessage();
-            sendChatAsServer(message);
+        boolean flag = entity.world.getGameRules().getBoolean("showDeathMessages");
+        if (flag) {
+            if (entity instanceof EntityPlayerMP) {
+                Team team = entity.getTeam();
+                if (!(team != null && team.getDeathMessageVisibility() != Team.EnumVisible.ALWAYS)) {
+                    ITextComponent message = event.getEntityLiving().getCombatTracker().getDeathMessage();
+                    sendChatAsServer(message);
+                }
+            } else {
+                boolean enableLivingEntityDeathMessages = false;
+                try {
+                    @SuppressWarnings("unchecked")
+                    Boolean b = ObfuscationReflectionHelper.getPrivateValue((Class<? super Object>) Class.forName("cofh.core.init.CoreProps"), null, "enableLivingEntityDeathMessages");
+                    enableLivingEntityDeathMessages = b;
+                } catch (Exception e) {
+                    ; // ignore
+                }
+                if (enableLivingEntityDeathMessages && !entity.world.isRemote && event.getEntityLiving().hasCustomName()) {
+                    ITextComponent message = event.getEntityLiving().getCombatTracker().getDeathMessage();
+                    sendChatAsServer(message);
+                }
+            }
         }
     }
 
