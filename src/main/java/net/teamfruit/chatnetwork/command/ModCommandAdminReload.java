@@ -9,7 +9,7 @@ import net.minecraftforge.common.config.Config;
 import net.minecraftforge.common.config.ConfigManager;
 import net.minecraftforge.common.config.Configuration;
 import net.minecraftforge.fml.common.Loader;
-import net.minecraftforge.fml.relauncher.ReflectionHelper;
+import net.minecraftforge.fml.common.ObfuscationReflectionHelper;
 import net.teamfruit.chatnetwork.Reference;
 
 import java.io.File;
@@ -42,7 +42,7 @@ public class ModCommandAdminReload extends CommandBase {
     public void execute(MinecraftServer server, ICommandSender sender, String[] args) throws CommandException {
         File configDir = Loader.instance().getConfigDir();
         File configFile = new File(configDir, Reference.MODID + ".cfg");
-        Map<String, Configuration> CONFIGS = ReflectionHelper.getPrivateValue(ConfigManager.class, null, "CONFIGS");
+        Map<String, Configuration> CONFIGS = ObfuscationReflectionHelper.getPrivateValue(ConfigManager.class, null, "CONFIGS");
         CONFIGS.remove(configFile.getAbsolutePath());
         ConfigManager.load(Reference.MODID, Config.Type.INSTANCE);
 
