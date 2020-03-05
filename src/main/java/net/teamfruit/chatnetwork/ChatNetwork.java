@@ -1,11 +1,15 @@
 package net.teamfruit.chatnetwork;
 
+import com.google.common.collect.MapDifference;
+import com.google.common.collect.Maps;
 import com.mojang.authlib.GameProfile;
 import net.minecraft.advancements.Advancement;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;
+import net.minecraft.network.play.server.SPacketPlayerListItem;
 import net.minecraft.scoreboard.Team;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.management.PlayerProfileCache;
 import net.minecraft.util.text.ITextComponent;
 import net.minecraft.util.text.TextComponentString;
@@ -26,6 +30,7 @@ import net.minecraftforge.fml.common.gameevent.PlayerEvent;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
 import net.teamfruit.chatnetwork.command.ModCommand;
 import net.teamfruit.chatnetwork.event.NetworkClientChatEvent;
+import net.teamfruit.chatnetwork.event.NetworkServerChatEvent;
 import net.teamfruit.chatnetwork.network.ChatReceiver;
 import net.teamfruit.chatnetwork.network.ChatSender;
 import net.teamfruit.chatnetwork.util.Base64Utils;
@@ -34,11 +39,15 @@ import org.apache.commons.lang3.StringUtils;
 
 import javax.annotation.Nonnull;
 import java.io.IOException;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 @Mod(modid = Reference.MODID, name = Reference.NAME, version = Reference.VERSION, acceptableRemoteVersions = "*")
 public class ChatNetwork {
+    public static MinecraftServer server;
+
     private ChatSender sender = new ChatSender();
     private ChatReceiver receiver = new ChatReceiver();
 
@@ -51,23 +60,33 @@ public class ChatNetwork {
         MinecraftForge.EVENT_BUS.register(this);
     }
 
+    private void sendChat(ChatData data) {
+        data.servername = ModConfig.api.name;
+        data.players = server.getPlayerList().getPlayers()
+                .stream()
+                .map(p -> new ChatData.PlayerData(new ChatData.PlayerData.Profile(p.getGameProfile()), p.ping, p.interactionManager.getGameType(), p.getTabListDisplayName()))
+                .collect(Collectors.toList());
+        sender.send(data);
+    }
+
     private void sendChatAsServer(ITextComponent message) {
         ChatData data = new ChatData();
         data.username = String.format(ModConfig.messages.serverNameMessage, ModConfig.api.name);
         data.content = message.getUnformattedText();
-        data.servername = ModConfig.api.name;
         data.component = message;
-        sender.send(data);
+        sendChat(data);
     }
 
     @Mod.EventHandler
     public void onServerStarting(FMLServerStartingEvent event) {
         Log.log.info("Starting ChatNetwork...");
 
+        server = event.getServer();
+
         event.registerServerCommand(new ModCommand());
 
         try {
-            receiver.start(event.getServer(), ModConfig.api.port);
+            receiver.start(ModConfig.api.port);
         } catch (IOException e) {
             Log.log.error("ChatNetwork could not start listening: ", e);
         }
@@ -84,6 +103,8 @@ public class ChatNetwork {
         receiver.stop();
     }
 
+    private Map<String, Map<String, ChatData.PlayerData>> players = Maps.newHashMap();
+
     @SubscribeEvent
     public void onPlayerLoginEvent(PlayerEvent.PlayerLoggedInEvent event) {
         GameProfile gameprofile = event.player.getGameProfile();
@@ -96,7 +117,13 @@ public class ChatNetwork {
         else
             message = new TextComponentTranslation("multiplayer.player.joined.renamed", event.player.getDisplayName(), s);
         message.getStyle().setColor(TextFormatting.YELLOW);
+
         sendChatAsServer(message);
+        if (event.player instanceof EntityPlayerMP) {
+            EntityPlayerMP playerMP = (EntityPlayerMP) event.player;
+            Collection<ChatData.PlayerData> packetPlayers = players.values().stream().flatMap(e -> e.entrySet().stream()).collect(Collectors.toMap(e -> e.getKey(), e -> e.getValue(), (i, j) -> i, HashMap::new)).values();
+            createPlayerListPacket(SPacketPlayerListItem.Action.ADD_PLAYER, packetPlayers).ifPresent(playerMP.connection::sendPacket);
+        }
     }
 
     @SubscribeEvent
@@ -104,6 +131,27 @@ public class ChatNetwork {
         ITextComponent message = new TextComponentTranslation("multiplayer.player.left", event.player.getDisplayName());
         message.getStyle().setColor(TextFormatting.YELLOW);
         sendChatAsServer(message);
+    }
+
+    private Optional<SPacketPlayerListItem> createPlayerListPacket(SPacketPlayerListItem.Action action, Collection<ChatData.PlayerData> changes) {
+        if (changes.isEmpty())
+            return Optional.empty();
+        SPacketPlayerListItem packet = new SPacketPlayerListItem(SPacketPlayerListItem.Action.ADD_PLAYER);
+        List<SPacketPlayerListItem.AddPlayerData> packetPlayers = ObfuscationReflectionHelper.getPrivateValue(SPacketPlayerListItem.class, packet, "field_179769_b");
+        packetPlayers.addAll(changes.stream().map(e -> packet.new AddPlayerData(e.profile.toGameProfile(), e.ping, e.gamemode, e.displayName)).collect(Collectors.toList()));
+        return Optional.of(packet);
+    }
+
+    @SubscribeEvent
+    public void onChatReceived(NetworkServerChatEvent event) {
+        Map<String, ChatData.PlayerData> before = players.computeIfAbsent(event.data.servername, e -> Maps.newHashMap());
+        Map<String, ChatData.PlayerData> after = event.data.players.stream().collect(Collectors.toMap(p -> p.profile.name, q -> q));
+        MapDifference<String, ChatData.PlayerData> diff = Maps.difference(before, after);
+        Map<String, ChatData.PlayerData> removed = diff.entriesOnlyOnLeft();
+        Map<String, ChatData.PlayerData> added = diff.entriesOnlyOnRight();
+
+        createPlayerListPacket(SPacketPlayerListItem.Action.REMOVE_PLAYER, removed.values()).ifPresent(server.getPlayerList()::sendPacketToAllPlayers);
+        createPlayerListPacket(SPacketPlayerListItem.Action.ADD_PLAYER, added.values()).ifPresent(server.getPlayerList()::sendPacketToAllPlayers);
     }
 
     @SubscribeEvent
@@ -149,9 +197,8 @@ public class ChatNetwork {
         ChatData data = new ChatData();
         data.username = event.getUsername();
         data.content = event.getMessage();
-        data.servername = ModConfig.api.name;
         data.component = event.getComponent();
-        sender.send(data);
+        sendChat(data);
     }
 
     @SubscribeEvent

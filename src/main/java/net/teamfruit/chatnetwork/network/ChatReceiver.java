@@ -5,12 +5,12 @@ import com.google.gson.JsonParseException;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
-import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.text.ITextComponent;
 import net.minecraft.util.text.TextComponentTranslation;
 import net.minecraftforge.common.ForgeHooks;
 import net.minecraftforge.common.MinecraftForge;
 import net.teamfruit.chatnetwork.ChatData;
+import net.teamfruit.chatnetwork.ChatNetwork;
 import net.teamfruit.chatnetwork.Log;
 import net.teamfruit.chatnetwork.ModConfig;
 import net.teamfruit.chatnetwork.event.NetworkServerChatEvent;
@@ -29,7 +29,7 @@ public class ChatReceiver {
     private HttpServer httpServer;
     private ExecutorService httpThreadPool;
 
-    public void start(MinecraftServer server, int port) throws IOException {
+    public void start(int port) throws IOException {
         if (httpServer != null)
             throw new IllegalStateException("ChatNetwork is already listening");
 
@@ -51,11 +51,14 @@ public class ChatReceiver {
                             itextcomponent = new TextComponentTranslation("chat.type.text", name, ForgeHooks.newChatWithLinks(data.content));
                         itextcomponent = onNetworkServerChatEvent(data, itextcomponent);
                         if (itextcomponent == null) return;
-                        server.getPlayerList().sendMessage(itextcomponent, false);
+                        ChatNetwork.server.getPlayerList().sendMessage(itextcomponent, false);
                     }, ServerThreadExecutor.INSTANCE);
 
                 } catch (JsonParseException e) {
                     Log.log.warn("Failed to parse network chat packet", e);
+                    success = false;
+                } catch (Exception e) {
+                    Log.log.warn("Failed to read network chat packet", e);
                     success = false;
                 }
                 if (success)
