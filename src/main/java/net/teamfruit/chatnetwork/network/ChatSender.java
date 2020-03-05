@@ -6,7 +6,9 @@ import net.teamfruit.chatnetwork.ChatData;
 import net.teamfruit.chatnetwork.Log;
 import net.teamfruit.chatnetwork.ModConfig;
 import net.teamfruit.chatnetwork.event.NetworkClientChatEvent;
+import net.teamfruit.chatnetwork.event.PlayerListUpdateEvent;
 import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang3.StringUtils;
 
 import javax.annotation.Nullable;
 import java.io.IOException;
@@ -47,6 +49,17 @@ public class ChatSender {
                     if (!(status == HttpURLConnection.HTTP_OK || status == HttpURLConnection.HTTP_NO_CONTENT)) {
                         Log.log.debug("Cloud not send message: " + target + " returned invalid status code " + status);
                         return false;
+                    }
+
+                    try {
+                        String response = IOUtils.toString(urlConn.getInputStream(), Charsets.UTF_8);
+                        if (!StringUtils.isEmpty(response)) {
+                            ChatData res = ChatData.Serializer.jsonToChatData(response);
+                            if (res.players != null)
+                                MinecraftForge.EVENT_BUS.post(new PlayerListUpdateEvent(res));
+                        }
+                    } catch (Exception e) {
+                        Log.log.debug("Cloud not parse response message from " + target);
                     }
 
                     return true;

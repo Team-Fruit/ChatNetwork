@@ -3,6 +3,7 @@ package net.teamfruit.chatnetwork;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.mojang.authlib.GameProfile;
+import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.util.EnumTypeAdapterFactory;
 import net.minecraft.util.JsonUtils;
 import net.minecraft.util.text.ITextComponent;
@@ -29,12 +30,15 @@ public class ChatData {
         public PlayerData() {
         }
 
-        public PlayerData(Profile profileIn, int latencyIn, GameType gameModeIn, @Nullable ITextComponent displayNameIn)
-        {
+        public PlayerData(Profile profileIn, int latencyIn, GameType gameModeIn, @Nullable ITextComponent displayNameIn) {
             this.profile = profileIn;
             this.ping = latencyIn;
             this.gamemode = gameModeIn;
             this.displayName = displayNameIn;
+        }
+
+        public static PlayerData createFromEntityPlayer(EntityPlayerMP p) {
+            return new PlayerData(new ChatData.PlayerData.Profile(p.getGameProfile()), p.ping, p.interactionManager.getGameType(), p.getTabListDisplayName());
         }
 
         public static class Profile {

@@ -1,5 +1,6 @@
 package net.teamfruit.chatnetwork;
 
+import com.google.common.collect.Lists;
 import com.google.common.collect.MapDifference;
 import com.google.common.collect.Maps;
 import com.mojang.authlib.GameProfile;
@@ -30,7 +31,7 @@ import net.minecraftforge.fml.common.gameevent.PlayerEvent;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
 import net.teamfruit.chatnetwork.command.ModCommand;
 import net.teamfruit.chatnetwork.event.NetworkClientChatEvent;
-import net.teamfruit.chatnetwork.event.NetworkServerChatEvent;
+import net.teamfruit.chatnetwork.event.PlayerListUpdateEvent;
 import net.teamfruit.chatnetwork.network.ChatReceiver;
 import net.teamfruit.chatnetwork.network.ChatSender;
 import net.teamfruit.chatnetwork.util.Base64Utils;
@@ -60,21 +61,18 @@ public class ChatNetwork {
         MinecraftForge.EVENT_BUS.register(this);
     }
 
-    private void sendChat(ChatData data) {
+    private void sendChat(List<EntityPlayerMP> players, ChatData data) {
         data.servername = ModConfig.api.name;
-        data.players = server.getPlayerList().getPlayers()
-                .stream()
-                .map(p -> new ChatData.PlayerData(new ChatData.PlayerData.Profile(p.getGameProfile()), p.ping, p.interactionManager.getGameType(), p.getTabListDisplayName()))
-                .collect(Collectors.toList());
+        data.players = players.stream().map(ChatData.PlayerData::createFromEntityPlayer).collect(Collectors.toList());
         sender.send(data);
     }
 
-    private void sendChatAsServer(ITextComponent message) {
+    private void sendChatAsServer(List<EntityPlayerMP> players, ITextComponent message) {
         ChatData data = new ChatData();
         data.username = String.format(ModConfig.messages.serverNameMessage, ModConfig.api.name);
         data.content = message.getUnformattedText();
         data.component = message;
-        sendChat(data);
+        sendChat(players, data);
     }
 
     @Mod.EventHandler
@@ -92,13 +90,13 @@ public class ChatNetwork {
         }
 
         ITextComponent message = new TextComponentString(String.format(ModConfig.messages.serverStartMessage, ModConfig.api.name));
-        sendChatAsServer(message);
+        sendChatAsServer(server.getPlayerList().getPlayers(), message);
     }
 
     @Mod.EventHandler
     public void onServerStopping(FMLServerStoppingEvent event) {
         ITextComponent message = new TextComponentString(String.format(ModConfig.messages.serverStopMessage, ModConfig.api.name));
-        sendChatAsServer(message);
+        sendChatAsServer(server.getPlayerList().getPlayers(), message);
 
         receiver.stop();
     }
@@ -118,7 +116,7 @@ public class ChatNetwork {
             message = new TextComponentTranslation("multiplayer.player.joined.renamed", event.player.getDisplayName(), s);
         message.getStyle().setColor(TextFormatting.YELLOW);
 
-        sendChatAsServer(message);
+        sendChatAsServer(server.getPlayerList().getPlayers(), message);
         if (event.player instanceof EntityPlayerMP) {
             EntityPlayerMP playerMP = (EntityPlayerMP) event.player;
             Collection<ChatData.PlayerData> packetPlayers = players.values().stream().flatMap(e -> e.entrySet().stream()).collect(Collectors.toMap(e -> e.getKey(), e -> e.getValue(), (i, j) -> i, HashMap::new)).values();
@@ -130,25 +128,30 @@ public class ChatNetwork {
     public void onPlayerLogoutEvent(PlayerEvent.PlayerLoggedOutEvent event) {
         ITextComponent message = new TextComponentTranslation("multiplayer.player.left", event.player.getDisplayName());
         message.getStyle().setColor(TextFormatting.YELLOW);
-        sendChatAsServer(message);
+
+        List<EntityPlayerMP> playerList = Lists.newArrayList(server.getPlayerList().getPlayers());
+        playerList.remove(event.player);
+        sendChatAsServer(playerList, message);
     }
 
     private Optional<SPacketPlayerListItem> createPlayerListPacket(SPacketPlayerListItem.Action action, Collection<ChatData.PlayerData> changes) {
         if (changes.isEmpty())
             return Optional.empty();
-        SPacketPlayerListItem packet = new SPacketPlayerListItem(SPacketPlayerListItem.Action.ADD_PLAYER);
+        SPacketPlayerListItem packet = new SPacketPlayerListItem(action);
         List<SPacketPlayerListItem.AddPlayerData> packetPlayers = ObfuscationReflectionHelper.getPrivateValue(SPacketPlayerListItem.class, packet, "field_179769_b");
         packetPlayers.addAll(changes.stream().map(e -> packet.new AddPlayerData(e.profile.toGameProfile(), e.ping, e.gamemode, e.displayName)).collect(Collectors.toList()));
         return Optional.of(packet);
     }
 
     @SubscribeEvent
-    public void onChatReceived(NetworkServerChatEvent event) {
+    public void onPlayerListUpdate(PlayerListUpdateEvent event) {
         Map<String, ChatData.PlayerData> before = players.computeIfAbsent(event.data.servername, e -> Maps.newHashMap());
         Map<String, ChatData.PlayerData> after = event.data.players.stream().collect(Collectors.toMap(p -> p.profile.name, q -> q));
         MapDifference<String, ChatData.PlayerData> diff = Maps.difference(before, after);
         Map<String, ChatData.PlayerData> removed = diff.entriesOnlyOnLeft();
         Map<String, ChatData.PlayerData> added = diff.entriesOnlyOnRight();
+        before.clear();
+        before.putAll(after);
 
         createPlayerListPacket(SPacketPlayerListItem.Action.REMOVE_PLAYER, removed.values()).ifPresent(server.getPlayerList()::sendPacketToAllPlayers);
         createPlayerListPacket(SPacketPlayerListItem.Action.ADD_PLAYER, added.values()).ifPresent(server.getPlayerList()::sendPacketToAllPlayers);
@@ -160,7 +163,7 @@ public class ChatNetwork {
         EntityPlayer player = event.getEntityPlayer();
         if (advancement.getDisplay() != null && advancement.getDisplay().shouldAnnounceToChat() && event.getEntityPlayer().world.getGameRules().getBoolean("announceAdvancements")) {
             ITextComponent message = new TextComponentTranslation("chat.type.advancement." + advancement.getDisplay().getFrame().getName(), player.getDisplayName(), advancement.getDisplayText());
-            sendChatAsServer(message);
+            sendChatAsServer(server.getPlayerList().getPlayers(), message);
         }
     }
 
@@ -173,7 +176,7 @@ public class ChatNetwork {
                 Team team = entity.getTeam();
                 if (!(team != null && team.getDeathMessageVisibility() != Team.EnumVisible.ALWAYS)) {
                     ITextComponent message = event.getEntityLiving().getCombatTracker().getDeathMessage();
-                    sendChatAsServer(message);
+                    sendChatAsServer(server.getPlayerList().getPlayers(), message);
                 }
             } else {
                 boolean enableLivingEntityDeathMessages = false;
@@ -186,7 +189,7 @@ public class ChatNetwork {
                 }
                 if (enableLivingEntityDeathMessages && !entity.world.isRemote && event.getEntityLiving().hasCustomName()) {
                     ITextComponent message = event.getEntityLiving().getCombatTracker().getDeathMessage();
-                    sendChatAsServer(message);
+                    sendChatAsServer(server.getPlayerList().getPlayers(), message);
                 }
             }
         }
@@ -198,7 +201,7 @@ public class ChatNetwork {
         data.username = event.getUsername();
         data.content = event.getMessage();
         data.component = event.getComponent();
-        sendChat(data);
+        sendChat(server.getPlayerList().getPlayers(), data);
     }
 
     @SubscribeEvent
