@@ -139,14 +139,14 @@ public class ChatNetwork {
             return Optional.empty();
         SPacketPlayerListItem packet = new SPacketPlayerListItem(action);
         List<SPacketPlayerListItem.AddPlayerData> packetPlayers = ObfuscationReflectionHelper.getPrivateValue(SPacketPlayerListItem.class, packet, "field_179769_b");
-        packetPlayers.addAll(changes.stream().map(e -> packet.new AddPlayerData(e.profile.toGameProfile(), e.ping, e.gamemode, e.displayName)).collect(Collectors.toList()));
+        packetPlayers.addAll(changes.stream().map(e -> packet.new AddPlayerData(e.profile, e.ping, e.gamemode, e.displayName)).collect(Collectors.toList()));
         return Optional.of(packet);
     }
 
     @SubscribeEvent
     public void onPlayerListUpdate(PlayerListUpdateEvent event) {
         Map<String, ChatData.PlayerData> before = players.computeIfAbsent(event.data.servername, e -> Maps.newHashMap());
-        Map<String, ChatData.PlayerData> after = event.data.players.stream().collect(Collectors.toMap(p -> p.profile.name, q -> q));
+        Map<String, ChatData.PlayerData> after = event.data.players.stream().collect(Collectors.toMap(p -> p.profile.getName(), q -> q));
         MapDifference<String, ChatData.PlayerData> diff = Maps.difference(before, after);
         Map<String, ChatData.PlayerData> removed = diff.entriesOnlyOnLeft();
         Map<String, ChatData.PlayerData> added = diff.entriesOnlyOnRight();

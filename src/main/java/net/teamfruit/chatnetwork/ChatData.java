@@ -1,8 +1,8 @@
 package net.teamfruit.chatnetwork;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
+import com.google.gson.*;
 import com.mojang.authlib.GameProfile;
+import com.mojang.authlib.properties.PropertyMap;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.util.EnumTypeAdapterFactory;
 import net.minecraft.util.JsonUtils;
@@ -11,6 +11,7 @@ import net.minecraft.util.text.Style;
 import net.minecraft.world.GameType;
 
 import javax.annotation.Nullable;
+import java.lang.reflect.Type;
 import java.util.List;
 import java.util.UUID;
 
@@ -24,13 +25,13 @@ public class ChatData {
     public static class PlayerData {
         public int ping;
         public GameType gamemode;
-        public Profile profile;
+        public GameProfile profile;
         public ITextComponent displayName;
 
         public PlayerData() {
         }
 
-        public PlayerData(Profile profileIn, int latencyIn, GameType gameModeIn, @Nullable ITextComponent displayNameIn) {
+        public PlayerData(GameProfile profileIn, int latencyIn, GameType gameModeIn, @Nullable ITextComponent displayNameIn) {
             this.profile = profileIn;
             this.ping = latencyIn;
             this.gamemode = gameModeIn;
@@ -38,24 +39,7 @@ public class ChatData {
         }
 
         public static PlayerData createFromEntityPlayer(EntityPlayerMP p) {
-            return new PlayerData(new ChatData.PlayerData.Profile(p.getGameProfile()), p.ping, p.interactionManager.getGameType(), p.getTabListDisplayName());
-        }
-
-        public static class Profile {
-            public UUID id;
-            public String name;
-
-            public Profile() {
-            }
-
-            public Profile(GameProfile profile) {
-                this.id = profile.getId();
-                this.name = profile.getName();
-            }
-
-            public GameProfile toGameProfile() {
-                return new GameProfile(this.id, this.name);
-            }
+            return new PlayerData(p.getGameProfile(), p.ping, p.interactionManager.getGameType(), p.getTabListDisplayName());
         }
     }
 
@@ -71,10 +55,48 @@ public class ChatData {
             return (ChatData) JsonUtils.gsonDeserialize(GSON, json, ChatData.class, false);
         }
 
+        public static class GameProfileSerializer implements JsonSerializer<GameProfile>, JsonDeserializer<GameProfile> {
+            @Override
+            public GameProfile deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context) throws JsonParseException {
+                if (json instanceof JsonObject) {
+                    final JsonObject object = (JsonObject) json;
+
+                    UUID id = null;
+                    if (object.has("id"))
+                        id = context.deserialize(object.get("id"), UUID.class);
+                    String name = null;
+                    if (object.has("name"))
+                        name = object.get("name").getAsString();
+
+                    GameProfile profile = new GameProfile(id, name);
+
+                    if (object.has("properties"))
+                        profile.getProperties().putAll(context.deserialize(object.get("properties"), PropertyMap.class));
+
+                    return profile;
+                }
+
+                return null;
+            }
+
+            @Override
+            public JsonElement serialize(GameProfile src, Type typeOfSrc, JsonSerializationContext context) {
+                JsonObject jsonobject = new JsonObject();
+
+                jsonobject.add("id", context.serialize(src.getId(), UUID.class));
+                jsonobject.addProperty("name", src.getName());
+                jsonobject.add("properties", context.serialize(src.getProperties(), PropertyMap.class));
+
+                return jsonobject;
+            }
+        }
+
         static {
             GsonBuilder gsonbuilder = new GsonBuilder();
             gsonbuilder.registerTypeHierarchyAdapter(ITextComponent.class, new ITextComponent.Serializer());
             gsonbuilder.registerTypeHierarchyAdapter(Style.class, new Style.Serializer());
+            gsonbuilder.registerTypeHierarchyAdapter(PropertyMap.class, new PropertyMap.Serializer());
+            gsonbuilder.registerTypeHierarchyAdapter(GameProfile.class, new GameProfileSerializer());
             gsonbuilder.registerTypeAdapterFactory(new EnumTypeAdapterFactory());
             GSON = gsonbuilder.create();
         }
